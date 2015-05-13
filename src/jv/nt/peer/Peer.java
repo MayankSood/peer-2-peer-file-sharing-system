@@ -10,9 +10,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
-import java.net.MulticastSocket;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashSet;
@@ -32,21 +29,21 @@ public class Peer {
 	public static final String FILES_DIRECTORY_PATH = "D:\\FILES";
 	public static final String FILES_DIRECTORY_PATH_DOWNLOADED = "D:\\FILES\\DOWNLOADED";
 
-	private static Set<String> peers = new HashSet<String>();
+	private Set<String> peers = new HashSet<String>();
 
 	public static final Peer peer = new Peer();
 
 	public static void main(String[] args) {
 
 		peer.createDirectory();
-		peer.startPolling();
+		new PollingService(peer).startPolling();
 		peer.startServer();
 		
 		while (true) {
 			System.out.println("Enter file name : ");
 			String filename = new Scanner(System.in).nextLine();
 			boolean fileFound = false;
-			for (String ip : peers) {
+			for (String ip : peer.getConnectedIps()) {
 				fileFound = peer.startClient(filename, ip);
 			}
 			if (!fileFound) {
@@ -83,17 +80,21 @@ public class Peer {
 				DataInputStream in = new DataInputStream(server.getInputStream());
 				String filename = in.readUTF().split(DELIMETER)[1];
 				File file = new File(FILES_DIRECTORY_PATH);
+				boolean fileFound = false;
 				for (File f : file.listFiles()) {
 					if (f.isFile()) {
 						String fname = f.getName();
 						if (fname.equals(filename)) {
+							fileFound = true;
 							System.out.println("Sending file :-->" + filename);
 							sendFileOnSocket(server, f);
 						}
 					}
 				}
-				DataOutputStream out = new DataOutputStream(server.getOutputStream());
-				out.writeUTF("No File Found");
+				if (!fileFound) {
+					DataOutputStream out = new DataOutputStream(server.getOutputStream());
+					out.writeUTF("No File Found");
+				}
 				server.close();
 			}
 		} catch (Exception s) {
@@ -162,77 +163,14 @@ public class Peer {
 		foss.flush();
 		foss.close();
 	}
-
-	public void startPolling() {
-		peer.startListening(peer);
-		peer.startNotifying(peer);
+	
+	public Set<String> getConnectedIps() {
+		return peers;
 	}
 
-	public void startListening(final Peer peer) {
-		new Thread(new Runnable() {
-
-			@Override
-			public void run() {
-				peer.startListening2();
-			}
-		}).start();
+	public void startListening(Peer peer2) {
+		// TODO Auto-generated method stub
+		
 	}
 
-	public void startNotifying(final Peer peer) {
-		new Thread(new Runnable() {
-
-			@Override
-			public void run() {
-				peer.startNotifyin2();
-			}
-		}).start();
-	}
-
-	public void startListening2() {
-		try {
-			String group = GROUP;
-
-			MulticastSocket s = new MulticastSocket(POLLING_PORT);
-			s.joinGroup(InetAddress.getByName(group));
-
-			boolean cond = true;
-			while (cond) {
-				byte buf[] = new byte[1024];
-				DatagramPacket pack = new DatagramPacket(buf, buf.length);
-				s.receive(pack);
-				String ip = pack.getAddress().toString().replaceAll("/", "");
-				if (!peers.contains(ip)) {
-					peers.add(ip);
-					System.out.println("New Peer added : " + ip);
-				}
-			}
-			s.leaveGroup(InetAddress.getByName(group));
-			s.close();
-
-		} catch (Exception e) {
-		}
-	}
-
-	public void startNotifyin2() {
-		try {
-			while (true) {
-				String group = GROUP;
-				int ttl = 1;
-
-				MulticastSocket s = new MulticastSocket();
-
-				byte buf[] = new byte[10];
-
-				for (int i = 0; i < buf.length; i++) {
-					buf[i] = (byte) i;
-				}
-				DatagramPacket pack = new DatagramPacket(buf, buf.length, InetAddress.getByName(group), POLLING_PORT);
-				s.setTimeToLive((byte) ttl);
-				s.send(pack);
-				s.close();
-				Thread.sleep(1000);
-			}
-		} catch (Exception e) {
-		}
-	}
 }
