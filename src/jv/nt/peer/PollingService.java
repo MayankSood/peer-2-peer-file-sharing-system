@@ -50,7 +50,7 @@ public class PollingService {
 				DatagramPacket pack = new DatagramPacket(buf, buf.length);
 				s.receive(pack);
 				String ip = pack.getAddress().toString().replaceAll("/", "");
-				if (!peer.getConnectedIps().contains(ip)) {
+				if (!peer.getConnectedIps().contains(ip) && !InetAddress.getLocalHost().getHostAddress().equals(ip)) {
 					peer.getConnectedIps().add(ip);
 					System.out.println("New Peer added : " + ip);
 				}
