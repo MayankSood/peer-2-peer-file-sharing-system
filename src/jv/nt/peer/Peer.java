@@ -59,6 +59,12 @@ public class Peer {
 		if (!file.exists()) {
 			file.mkdir();
 		}
+		
+		file = new File(FILES_DIRECTORY_PATH_DOWNLOADED);
+		
+		if (!file.exists()) {
+			file.mkdir();
+		}
 	}
 
 	public void startServer() {
