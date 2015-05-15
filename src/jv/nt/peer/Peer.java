@@ -12,30 +12,29 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
-import java.util.Set;
 
 @SuppressWarnings("resource")
 public class Peer {
 
-	public static final String GROUP = "225.4.5.6";
+	public static String GROUP;
 	public static final int POLLING_PORT = 5555;
-	public static final int SERVER_PORT = 5050;
+	public static int SERVER_PORT;
 	public static final String DELIMETER = ":--:-->";
 	
 	public static final String FOUND = "found";
+	public static String PEER_ID;
 
-	public static final String FILES_DIRECTORY_PATH = "D:\\FILES";
-	public static final String FILES_DIRECTORY_PATH_DOWNLOADED = "D:\\FILES\\DOWNLOADED";
-
-	private Set<String> peers = new HashSet<String>();
+	private Map<String, String> peers = new HashMap<String, String>();
 
 	public static final Peer peer = new Peer();
 
 	public static void main(String[] args) {
 
-		peer.createDirectory();
+		init(args);
+		
 		new PollingService(peer).startPolling();
 		peer.startServer();
 		
@@ -43,9 +42,7 @@ public class Peer {
 			System.out.println("Enter file name : ");
 			String filename = new Scanner(System.in).nextLine();
 			boolean fileFound = false;
-			for (String ip : peer.getConnectedIps()) {
-				fileFound = peer.startClient(filename, ip);
-			}
+			fileFound = getFile(filename, fileFound);
 			if (!fileFound) {
 				System.out.println("File not found. Please check the name of the file");
 			}
@@ -53,17 +50,26 @@ public class Peer {
 
 	}
 
-	public void createDirectory() {
-		File file = new File(FILES_DIRECTORY_PATH);
-
-		if (!file.exists()) {
-			file.mkdir();
+	private static boolean getFile(String filename, boolean fileFound) {
+		for (String ip : peer.getConnectedIps().values()) {
+			if (SERVER_PORT != Integer.parseInt(ip.split(DELIMETER)[1])) {
+				fileFound = peer.startClient(filename, ip.split(DELIMETER)[0], Integer.parseInt(ip.split(DELIMETER)[1]));
+				if (fileFound == true) {
+					return true;
+				}
+			}
 		}
-		
-		file = new File(FILES_DIRECTORY_PATH_DOWNLOADED);
-		
-		if (!file.exists()) {
-			file.mkdir();
+		return false;
+	}
+
+	private static void init(String[] args) {
+		try {
+			GROUP = args[0];
+			SERVER_PORT = Integer.parseInt(args[1]);
+			PEER_ID = args[2];
+		} catch (Exception e) {
+			System.out.println("Please enter the variables as GROUP_ID PORT PEER_ID");
+			System.exit(0);
 		}
 	}
 
@@ -85,7 +91,8 @@ public class Peer {
 				Socket server = serverSocket.accept();
 				DataInputStream in = new DataInputStream(server.getInputStream());
 				String filename = in.readUTF().split(DELIMETER)[1];
-				File file = new File(FILES_DIRECTORY_PATH);
+				//File file = new File(Peer.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath());
+				File file = new File(".");
 				boolean fileFound = false;
 				for (File f : file.listFiles()) {
 					if (f.isFile()) {
@@ -132,9 +139,9 @@ public class Peer {
 		return bFile;
 	}
 
-	public boolean startClient(String fileName, String serverName) {
+	public boolean startClient(String fileName, String serverName, int serverPort) {
 		try {
-			Socket client = new Socket(serverName, SERVER_PORT);
+			Socket client = new Socket(serverName, serverPort);
 			OutputStream outToServer = client.getOutputStream();
 			DataOutputStream out = new DataOutputStream(outToServer);
 			out.writeUTF("fileName" + DELIMETER + fileName);
@@ -164,19 +171,14 @@ public class Peer {
 
 		i.read(arr);
 
-		FileOutputStream foss = new FileOutputStream(FILES_DIRECTORY_PATH_DOWNLOADED+"/"+fileName);
+		FileOutputStream foss = new FileOutputStream("download-"+fileName);
 		foss.write(arr);
 		foss.flush();
 		foss.close();
 	}
 	
-	public Set<String> getConnectedIps() {
+	public Map<String, String> getConnectedIps() {
 		return peers;
-	}
-
-	public void startListening(Peer peer2) {
-		// TODO Auto-generated method stub
-		
 	}
 
 }

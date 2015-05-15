@@ -49,10 +49,11 @@ public class PollingService {
 				byte buf[] = new byte[1024];
 				DatagramPacket pack = new DatagramPacket(buf, buf.length);
 				s.receive(pack);
+				String[] data = new String(pack.getData()).split(Peer.DELIMETER);
 				String ip = pack.getAddress().toString().replaceAll("/", "");
-				if (!peer.getConnectedIps().contains(ip) && !InetAddress.getLocalHost().getHostAddress().equals(ip)) {
-					peer.getConnectedIps().add(ip);
-					System.out.println("New Peer added : " + ip);
+				if (peer.getConnectedIps().get(data[1]) == null) {
+					peer.getConnectedIps().put(data[1], ip+Peer.DELIMETER+data[0]);
+					System.out.println("New Peer added : " + ip+":"+data[0]);
 				}
 			}
 			s.leaveGroup(InetAddress.getByName(group));
@@ -75,9 +76,9 @@ public class PollingService {
 				for (int i = 0; i < buf.length; i++) {
 					buf[i] = (byte) i;
 				}
-				DatagramPacket pack = new DatagramPacket(buf, buf.length, InetAddress.getByName(group),
-						Peer.POLLING_PORT);
+				DatagramPacket pack = new DatagramPacket(buf, buf.length, InetAddress.getByName(group), Peer.POLLING_PORT);
 				s.setTimeToLive((byte) ttl);
+				pack.setData(String.valueOf(Peer.SERVER_PORT+Peer.DELIMETER+Peer.PEER_ID).getBytes());
 				s.send(pack);
 				s.close();
 				Thread.sleep(1000);
