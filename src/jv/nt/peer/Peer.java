@@ -12,6 +12,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
@@ -20,7 +21,7 @@ import java.util.Scanner;
 public class Peer {
 
 	public static String GROUP;
-	public static final int POLLING_PORT = 5555;
+	public static int POLLING_PORT;
 	public static int SERVER_PORT;
 	public static final String DELIMETER = ":--:-->";
 	
@@ -30,12 +31,27 @@ public class Peer {
 	private Map<String, String> peers = new HashMap<String, String>();
 
 	public static final Peer peer = new Peer();
+	public static final PollingService POLLING_SERVICE = new PollingService(peer);
+	
+	static {
+        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+			
+			@Override
+			public void run() {
+				try {
+					POLLING_SERVICE.sendNotification(false);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}));
+    }
 
 	public static void main(String[] args) {
 
 		init(args);
 		
-		new PollingService(peer).startPolling();
+		POLLING_SERVICE.startPolling();
 		peer.startServer();
 		
 		while (true) {
@@ -65,8 +81,9 @@ public class Peer {
 	private static void init(String[] args) {
 		try {
 			GROUP = args[0];
-			SERVER_PORT = Integer.parseInt(args[1]);
+			POLLING_PORT = Integer.parseInt(args[1]);
 			PEER_ID = args[2];
+			SERVER_PORT = peer.getServerPort();
 		} catch (Exception e) {
 			System.out.println("Please enter the variables as GROUP_ID PORT PEER_ID");
 			System.exit(0);
@@ -179,6 +196,10 @@ public class Peer {
 	
 	public Map<String, String> getConnectedIps() {
 		return peers;
+	}
+	
+	private int getServerPort() {
+		return (int)(Math.floor(Math.random() * (6060 - 5050 + 1)) + 5050);
 	}
 
 }
